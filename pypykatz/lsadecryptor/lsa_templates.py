@@ -18,35 +18,15 @@ class LsaTemplate(PackageTemplate):
 	@staticmethod
 	def get_template(sysinfo):
 		template = LsaTemplate()
-		#identify the OS
-		logging.debug('Buildnumber: %s' % sysinfo.buildnumber)
 		
-		if WindowsMinBuild.WIN_XP.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_2K3.value:
-			raise Exception("Maybe implemented later")
-		
-		elif WindowsMinBuild.WIN_2K3.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_VISTA.value:
-			raise Exception("Maybe implemented later")
+		if sysinfo.architecture == KatzSystemArchitecture.X86:
+			if sysinfo.buildnumber <= WindowsMinBuild.WIN_XP.value:
+				raise Exception("Maybe implemented later")
 			
-		elif WindowsMinBuild.WIN_VISTA.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_7.value:
-			if sysinfo.architecture == KatzSystemArchitecture.X64:
-				logging.debug('Using template for Windows Vista x64')
+			elif sysinfo.buildnumber <= WindowsMinBuild.WIN_2K3.value:
+				raise Exception("Maybe implemented later")
 				
-				key_pattern = LSADecyptorKeyPattern()
-				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4c\x24\x48\x48\x8b\x0d'
-				key_pattern.IV_length = 16
-				key_pattern.offset_to_IV_ptr = 63
-				key_pattern.offset_to_DES_key_ptr = -69
-				key_pattern.offset_to_AES_key_ptr = 25
-				
-				template.key_pattern = key_pattern
-				template.key_struct = KIWI_BCRYPT_KEY
-				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-				
-				
-				
-			elif sysinfo.architecture == KatzSystemArchitecture.X86:
-				logging.debug('Using template for Windows Vista x86')
-				
+			elif WindowsMinBuild.WIN_VISTA.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_7.value:
 				key_pattern = LSADecyptorKeyPattern()
 				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
 				key_pattern.IV_length = 16
@@ -57,29 +37,8 @@ class LsaTemplate(PackageTemplate):
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			else:
-				raise Exception('Unknown CPU architecture %s' % sysinfo.architecture)
-		
-		elif WindowsMinBuild.WIN_7.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_8.value:
-			#windows 7
-			if sysinfo.architecture == KatzSystemArchitecture.X64:
-				logging.debug('Using template for Windows 7 x64')
 				
-				key_pattern = LSADecyptorKeyPattern()
-				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4c\x24\x48\x48\x8b\x0d'
-				key_pattern.IV_length = 16
-				key_pattern.offset_to_IV_ptr = 59
-				key_pattern.offset_to_DES_key_ptr = -61
-				key_pattern.offset_to_AES_key_ptr = 25
-				
-				template.key_pattern = key_pattern
-				template.key_struct = KIWI_BCRYPT_KEY
-				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			
-			elif sysinfo.architecture == KatzSystemArchitecture.X86:
-				logging.debug('Using template for Windows 7 x86')
-				logging.warning('This needs testing!!')
-				
+			elif WindowsMinBuild.WIN_7.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_8.value:
 				key_pattern = LSADecyptorKeyPattern()
 				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
 				key_pattern.IV_length = 16
@@ -90,28 +49,8 @@ class LsaTemplate(PackageTemplate):
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			else:
-				raise Exception('Unknown CPU architecture %s' % sysinfo.architecture)
-			
-		elif WindowsMinBuild.WIN_8.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_BLUE.value:
-			if sysinfo.architecture == KatzSystemArchitecture.X64:
-				logging.debug('Using template for Windows 8 x64')
 				
-				key_pattern = LSADecyptorKeyPattern()
-				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4d\xd8\x48\x8b\x0d'
-				key_pattern.IV_length = 16
-				key_pattern.offset_to_IV_ptr = 62
-				key_pattern.offset_to_DES_key_ptr = -70
-				key_pattern.offset_to_AES_key_ptr = 23
-				
-				template.key_pattern = key_pattern
-				template.key_struct = KIWI_BCRYPT_KEY8
-				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-				
-			elif sysinfo.architecture == KatzSystemArchitecture.X86:
-				logging.debug('Using template for Windows 8 x86')
-				logging.warning('This needs testing!!')
-				
+			elif WindowsMinBuild.WIN_8.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_BLUE.value:
 				key_pattern = LSADecyptorKeyPattern()
 				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
 				key_pattern.IV_length = 16
@@ -122,28 +61,8 @@ class LsaTemplate(PackageTemplate):
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY8
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			else:
-				raise Exception('Unknown CPU architecture %s' % sysinfo.architecture)
-			
-		elif WindowsMinBuild.WIN_BLUE.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_10.value:
-			#Windows 8.1
-			if sysinfo.architecture == KatzSystemArchitecture.X64:
-				logging.debug('Using template for Windows 8.1 x64')
 				
-				key_pattern = LSADecyptorKeyPattern()
-				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4d\xd8\x48\x8b\x0d'
-				key_pattern.IV_length = 16
-				key_pattern.offset_to_IV_ptr = 62
-				key_pattern.offset_to_DES_key_ptr = -70
-				key_pattern.offset_to_AES_key_ptr = 23
-				
-				template.key_pattern = key_pattern
-				template.key_struct = KIWI_BCRYPT_KEY81
-				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			
-			elif sysinfo.architecture == KatzSystemArchitecture.X86:
-				logging.debug('Using template for Windows 8.1 x86')
-				
+			elif WindowsMinBuild.WIN_BLUE.value <= sysinfo.buildnumber < WindowsMinBuild.WIN_10.value:
 				key_pattern = LSADecyptorKeyPattern()
 				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
 				key_pattern.IV_length = 16
@@ -155,27 +74,21 @@ class LsaTemplate(PackageTemplate):
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY81
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
-			else:
-				raise Exception('Unknown CPU architecture %s' % sysinfo.architecture)
-			
-		#elif WindowsMinBuild.WIN_10.value <= sysinfo.buildnumber <= WindowsBuild.WIN_10_1507.value:
-		elif WindowsMinBuild.WIN_10.value <= sysinfo.buildnumber:
-			if sysinfo.architecture == KatzSystemArchitecture.X64:
-				logging.debug('Using template for Windows 10 x64')
 				
+			elif WindowsMinBuild.WIN_10.value <= sysinfo.buildnumber <= WindowsBuild.WIN_10_1507.value:
 				key_pattern = LSADecyptorKeyPattern()
-				key_pattern.signature = b'\x83\x64\x24\x30\x00\x48\x8d\x45\xe0\x44\x8b\x4d\xd8\x48\x8d\x15'
+				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
 				key_pattern.IV_length = 16
-				key_pattern.offset_to_IV_ptr = 61
-				key_pattern.offset_to_DES_key_ptr = -73
-				key_pattern.offset_to_AES_key_ptr = 16
+				key_pattern.offset_to_IV_ptr = 5
+				key_pattern.offset_to_DES_key_ptr = -79
+				key_pattern.offset_to_AES_key_ptr = -22
 				
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY81
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
 				
-			elif sysinfo.architecture == KatzSystemArchitecture.X86:
-				logging.debug('Using template for Windows 10 x86')
+				
+			elif sysinfo.buildnumber > WindowsBuild.WIN_10_1507.value:
 				
 				key_pattern = LSADecyptorKeyPattern()
 				key_pattern.signature = b'\x6a\x02\x6a\x10\x68'
@@ -187,8 +100,89 @@ class LsaTemplate(PackageTemplate):
 				template.key_pattern = key_pattern
 				template.key_struct = KIWI_BCRYPT_KEY81
 				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+		
+		elif sysinfo.architecture == KatzSystemArchitecture.X64:
+		
+			if sysinfo.buildnumber <= WindowsMinBuild.WIN_XP.value:
+				raise Exception("Maybe implemented later")
+			
+			elif sysinfo.buildnumber <= WindowsMinBuild.WIN_2K3.value:
+				raise Exception("Maybe implemented later")
+			
+			elif sysinfo.buildnumber < WindowsMinBuild.WIN_7.value:
+				#vista
+				key_pattern = LSADecyptorKeyPattern()
+				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4c\x24\x48\x48\x8b\x0d'
+				key_pattern.IV_length = 16
+				key_pattern.offset_to_IV_ptr = 63
+				key_pattern.offset_to_DES_key_ptr = -69
+				key_pattern.offset_to_AES_key_ptr = 25
+				
+				template.key_pattern = key_pattern
+				template.key_struct = KIWI_BCRYPT_KEY
+				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+		
+			elif sysinfo.buildnumber < WindowsMinBuild.WIN_8.value:
+				#win 7
+				key_pattern = LSADecyptorKeyPattern()
+				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4c\x24\x48\x48\x8b\x0d'
+				key_pattern.IV_length = 16
+				key_pattern.offset_to_IV_ptr = 59
+				key_pattern.offset_to_DES_key_ptr = -61
+				key_pattern.offset_to_AES_key_ptr = 25
+				
+				template.key_pattern = key_pattern
+				template.key_struct = KIWI_BCRYPT_KEY
+				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+			
+			elif sysinfo.buildnumber < WindowsMinBuild.WIN_10.value:
+				#win 8 and blue
+				key_pattern = LSADecyptorKeyPattern()
+				key_pattern.signature = b'\x83\x64\x24\x30\x00\x44\x8b\x4d\xd8\x48\x8b\x0d'
+				key_pattern.IV_length = 16
+				key_pattern.offset_to_IV_ptr = 62
+				key_pattern.offset_to_DES_key_ptr = -70
+				key_pattern.offset_to_AES_key_ptr = 23
+				
+				if sysinfo.buildnumber < WindowsMinBuild.WIN_BLUE.value:
+					#win8
+					template.key_pattern = key_pattern
+					template.key_struct = KIWI_BCRYPT_KEY8
+					template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+				
+				else:
+					#win blue
+					template.key_pattern = key_pattern
+					template.key_struct = KIWI_BCRYPT_KEY81
+					template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+			
+			
+			elif sysinfo.buildnumber <= WindowsBuild.WIN_10_1809.value:
+				key_pattern = LSADecyptorKeyPattern()
+				key_pattern.signature = b'\x83\x64\x24\x30\x00\x48\x8d\x45\xe0\x44\x8b\x4d\xd8\x48\x8d\x15'
+				key_pattern.IV_length = 16
+				key_pattern.offset_to_IV_ptr = 61
+				key_pattern.offset_to_DES_key_ptr = -73
+				key_pattern.offset_to_AES_key_ptr = 16
+				
+				template.key_pattern = key_pattern
+				template.key_struct = KIWI_BCRYPT_KEY81
+				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
+				
+				
+			#elif sysinfo.buildnumber <= WindowsBuild.WIN_10_1809.value:
 			else:
-				raise Exception('Unknown CPU architecture %s' % sysinfo.architecture)
+				#1809
+				key_pattern = LSADecyptorKeyPattern()
+				key_pattern.signature = b'\x83\x64\x24\x30\x00\x48\x8d\x45\xe0\x44\x8b\x4d\xd8\x48\x8d\x15'
+				key_pattern.IV_length = 16
+				key_pattern.offset_to_IV_ptr = 67
+				key_pattern.offset_to_DES_key_ptr = -89
+				key_pattern.offset_to_AES_key_ptr = 16
+				
+				template.key_pattern = key_pattern
+				template.key_struct = KIWI_BCRYPT_KEY81
+				template.key_handle_struct = KIWI_BCRYPT_HANDLE_KEY
 			
 		else:
 			raise Exception('Missing LSA decrpytor template for Architecture: %s , Build number %s' % (sysinfo.architecture, sysinfo.buildnumber))

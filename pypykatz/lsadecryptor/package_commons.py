@@ -1,5 +1,6 @@
-from abc import abstractmethod
 import logging
+
+from abc import abstractmethod
 from pypykatz.commons.common import *
 from pypykatz.commons.win_datatypes import *
 
@@ -8,18 +9,20 @@ class Logger:
 		self.package_name = package_name
 		self.module_name = module_name
 		self.sysinfo = sysinfo
+		self.logger = logging.getLogger('pypykatz')
 		
 	def get_level(self):
-		return logging.getLogger().getEffectiveLevel()
+		return self.logger.getEffectiveLevel()
 		
 	def log(self, msg, loglevel = 1):
 		first = True
 		for line in msg.split('\n'):
 			if first == True:
-				logging.log(loglevel, '[%s] [%s] %s' % (self.package_name, self.module_name, line))
+				self.logger.log(loglevel, '[%s] [%s] %s' % (self.package_name, self.module_name, line))
 				first = False
 			else:
-				logging.log(loglevel, '[%s] [%s]    %s' % (self.package_name, self.module_name, line))
+				self.logger.log(loglevel, '[%s] [%s]    %s' % (self.package_name, self.module_name, line))
+
 
 class PackageTemplate(object):
 	def __init__(self, package_name, sysinfo = None):
@@ -30,7 +33,7 @@ class PackageTemplate(object):
 	def log(self, msg, loglevel = 6):
 		self.logger.log(loglevel, '%s' % msg)
 	
-	def log_template(self, struct_var_name, struct_template_obj, loglevel = 1):
+	def log_template(self, struct_var_name, struct_template_obj, loglevel = 6):
 		""""
 		Generic logging function to show which template was selected for which structure
 		"""
@@ -87,10 +90,13 @@ class PackageDecryptor(object):
 				datasize = 0x200			
 			
 		pos = self.reader.tell()
-		self.reader.move(ptr)
-		data = self.reader.peek(datasize)
-		self.reader.move(pos)
-		self.log('%s: %s\n%s' % (name, hex(ptr), hexdump(data, start = ptr)))
+		try:
+			self.reader.move(ptr)
+			data = self.reader.peek(datasize)
+			self.reader.move(pos)
+			self.log('%s: %s\n%s' % (name, hex(ptr), hexdump(data, start = ptr)))
+		except Exception as e:
+			self.log('%s: Logging failed for position %s' % (name, hex(ptr)))
 		
 	def decrypt_password(self, enc_password, bytes_expected = False, trim_zeroes = True):
 		"""
@@ -149,6 +155,10 @@ class PackageDecryptor(object):
 		override_ptr = if this parameter is set the pointer will be resolved as if it would be pointing to this structure
 		"""
 		
+		#if entry_ptr.value == 0:
+		#	self.log('walk_list called with a NULL pointer! This could mean that parsing is failing, double check this!')
+		#	return
+		
 		entries_seen = {}
 		entries_seen[entry_ptr.location] = 1
 		max_walk = max_walk
@@ -158,8 +168,13 @@ class PackageDecryptor(object):
 				entry = entry_ptr.read(self.reader, override_ptr)
 			else:
 				entry = entry_ptr.read(self.reader)
+
+			if not entry:
+				break
 				
 			callback(entry)
+
+
 			
 			max_walk -= 1
 			self.log('%s next ptr: %x' % (entry.Flink.finaltype.__name__ if not override_ptr else override_ptr.__name__ , entry.Flink.value))

@@ -9,22 +9,10 @@ import datetime
 import struct
 from .readers.local.common.version import PROCESSOR_ARCHITECTURE
 
-# enum.auto() is only present for Python >= 3.6
-# This is a workaround found here:
-# https://codereview.stackexchange.com/questions/177309/reimplementing-pythons-enum-auto-for-compatibility
-try:
-	from enum import auto
-except ImportError: 
-	__my_enum_auto_id = 0
-	def auto():
-		global __my_enum_auto_id
-		i = __my_enum_auto_id
-		__my_enum_auto_id += 1
-		return i
 
 class KatzSystemArchitecture(enum.Enum):
-	X86 = auto()
-	X64 = auto()
+	X86 = 0
+	X64 = 1
 
 class GenericReader:
 	def __init__(self, data, processor_architecture = KatzSystemArchitecture.X64):
@@ -198,7 +186,11 @@ class WindowsBuild(enum.IntEnum):
 	WIN_10_1507 = 10240
 	WIN_10_1511 = 10586
 	WIN_10_1607 = 14393
-	WIN_10_1707 = 15063
+	WIN_10_1703 = 15063
+	WIN_10_1709 = 16299
+	WIN_10_1803 = 17134
+	WIN_10_1809 = 17763
+	WIN_10_1903 = 18362
 	
 class WindowsMinBuild(enum.IntEnum):
 	WIN_XP = 2500
@@ -285,7 +277,7 @@ class UniversalEncoder(json.JSONEncoder):
 
 class KatzSystemInfo:
 	def __init__(self):
-		self.arhcitecture = None
+		self.architecture = None
 		self.buildnumber = None
 		self.msv_dll_timestamp = None #this is needed :(
 		self.operating_system = None
@@ -322,6 +314,16 @@ class KatzSystemInfo:
 		for module in minidump.modules.modules:
 			if module.name.find('lsasrv.dll') != -1:
 				sysinfo.msv_dll_timestamp = module.timestamp
+	
+		return sysinfo
+
+	@staticmethod
+	def from_rekallreader(rekallreader):
+		sysinfo = KatzSystemInfo()
+		sysinfo.architecture = rekallreader.processor_architecture		
+		sysinfo.operating_system = None
+		sysinfo.buildnumber = rekallreader.BuildNumber
+		sysinfo.msv_dll_timestamp = rekallreader.msv_dll_timestamp
 	
 		return sysinfo
 	

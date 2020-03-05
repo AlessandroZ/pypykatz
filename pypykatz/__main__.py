@@ -14,35 +14,100 @@ import json
 import ntpath
 
 
-from pypykatz.pypykatz import pypykatz
-from pypykatz.commons.common import UniversalEncoder
+from pypykatz.registry.offline_parser import OffineRegistry
+from pypykatz.commons.common import UniversalEncoder, hexdump
 
 def main():
 	import argparse
 	import glob
+	
+	from pypykatz.utils.crypto.cmdhelper import CryptoCMDHelper
+	from pypykatz.ldap.cmdhelper import LDAPCMDHelper
+	from pypykatz.kerberos.cmdhelper import KerberosCMDHelper
+	from pypykatz.lsadecryptor.cmdhelper import LSACMDHelper
+	from pypykatz.registry.cmdhelper import RegistryCMDHelper
+	from pypykatz.remote.cmdhelper import RemoteCMDHelper
+	
+	cmdhelpers = [LSACMDHelper(), RegistryCMDHelper(), CryptoCMDHelper(), LDAPCMDHelper(), KerberosCMDHelper(), RemoteCMDHelper()]
+	
 
-	parser = argparse.ArgumentParser(description='Pure Python implementation of Mimikatz --or at least some parts of it--')
+	parser = argparse.ArgumentParser(description='Pure Python implementation of Mimikatz --and more--')
 	parser.add_argument('-v', '--verbose', action='count', default=0)
-	parser.add_argument('--json', action='store_true',help = 'Print credentials in JSON format')
-	parser.add_argument('-e','--halt-on-error', action='store_true',help = 'Stops parsing when a file cannot be parsed')
-	parser.add_argument('-o', '--outfile', help = 'Save results to file (you can specify --json for json file, or text format will be written)')
-	parser.add_argument('-k', '--kerberos-dir', help = 'Save kerberos tickets to a directory.')
-
+	
 	subparsers = parser.add_subparsers(help = 'commands')
 	subparsers.required = True
 	subparsers.dest = 'command'
 	
-	minidump_group = subparsers.add_parser('minidump', help='List all tickets in the file')
-	minidump_group.add_argument('minidumpfile', help='path to the minidump file or a folder (if -r is set)')
-	minidump_group.add_argument('-r', '--recursive', action='store_true', help = 'Recursive parsing')
-	minidump_group.add_argument('-d', '--directory', action='store_true', help = 'Parse all dump files in a folder')
-	
-	
-	live_group = subparsers.add_parser('live', help='List all tickets in the file')
-	live_subparsers = live_group.add_subparsers(help = 'module')
+	live_group = subparsers.add_parser('live', help='Get secrets from live machine')
+	live_subparsers = live_group.add_subparsers()
 	live_subparsers.required = True
 	live_subparsers.dest = 'module'
-	live_subparser_lsa_group = live_subparsers.add_parser('lsa', help='List all tickets in the file')
+	
+	#this is the new cmd helper formet, in beta mode currently
+	for helper in cmdhelpers:
+		helper.add_args(subparsers, live_subparsers)
+	
+	
+	live_subparser_process_group = live_subparsers.add_parser('process', help='Process creating/manipulation commands')
+	
+	live_subparser_process_group.add_argument('cmd', choices=['create'])
+	live_subparser_process_group.add_argument('-i','--interactive', action = 'store_true', help = 'Spawns a new interactive process')
+	live_subparser_process_group.add_argument('--sid', help = 'Impersonate given SID in new process')
+	live_subparser_process_group.add_argument('-c', '--cmdline', help = 'The process to execute. Default: cmd.exe')
+	
+	live_subparser_token_group = live_subparsers.add_parser('token', help='Token creating/manipulation commands')
+	live_subparser_token_group.add_argument('cmd', choices=['list', 'current'])
+	live_subparser_token_group.add_argument('-f','--force', action='store_true', help= 'Tries to list as many tokens as possible without SE_DEBUG privilege')
+	live_subparser_users_group = live_subparsers.add_parser('users', help='User creating/manipulation commands')
+	live_subparser_users_group.add_argument('cmd', choices=['list','whoami'])
+	
+	live_subparser_dpapi_group = live_subparsers.add_parser('dpapi', help='DPAPI (live) related commands')
+	live_subparser_dpapi_group.add_argument('-r','--method_registry', action='store_true', help= 'Getting prekeys from LIVE registry')
+	live_subparser_dpapi_group.add_argument('--vpol', help= 'VPOL file')
+	live_subparser_dpapi_group.add_argument('--vcred', help= 'VCRED file')
+	live_subparser_dpapi_group.add_argument('--cred', help= 'credential file')
+	live_subparser_dpapi_group.add_argument('--mkf', help= 'masterkey file')
+
+	dpapi_group = subparsers.add_parser('dpapi', help='DPAPI (offline) related commands')
+	dpapi_subparsers = dpapi_group.add_subparsers()
+	dpapi_subparsers.required = True
+	dpapi_subparsers.dest = 'dapi_module'
+
+	dpapi_prekey_group = dpapi_subparsers.add_parser('prekey', help='Obtains keys for masterkey decryption. Sources can be registry hives file or plaintext password and SID or NT hash and SID')
+	dpapi_prekey_group.add_argument('keysource', choices=['registry', 'password', 'nt'], help = 'Define what type of input you want to parse')
+	dpapi_prekey_group.add_argument('-o', '--out-file', help= 'Key candidates will be stored in this file. Easier to handle this way in the masterkeyfil command.')
+	dpapi_prekey_group.add_argument('--system', help= '[registry] Path to SYSTEM hive file')
+	dpapi_prekey_group.add_argument('--sam', help= '[registry] Path to SAM hive file')
+	dpapi_prekey_group.add_argument('--security', help= '[registry] Path to SECURITY hive file')
+	dpapi_prekey_group.add_argument('--sid', help= '[password and nt] Key used for decryption. The usage of this key depends on what other params you supply.')
+	dpapi_prekey_group.add_argument('--password', help= '[password] Plaintext passowrd of the user. Used together with SID')
+	dpapi_prekey_group.add_argument('--nt', help= '[nt] NT hash of the user password. Used together with SID. !!Succsess not guaranteed!!')
+	
+	dpapi_minidump_group = dpapi_subparsers.add_parser('minidump', help='Dump masterkeys from minidump file')
+	dpapi_minidump_group.add_argument('minidumpfile', help='path to minidump file')
+
+	dpapi_mastekey_group = dpapi_subparsers.add_parser('masterkey', help='Decrypt masterkey file')
+	dpapi_mastekey_group.add_argument('mkf', help='path to masterkey file')
+	dpapi_mastekey_group.add_argument('--key', help= 'Key used for decryption, in hex format')
+	dpapi_mastekey_group.add_argument('--prekey', help= 'Path to prekey file, which has multiple decryption key candidates')
+	dpapi_mastekey_group.add_argument('-o', '--out-file', help= 'Master and Backup keys will be stored in this file. Easier to handle in other commands.')
+
+
+	dpapi_credential_group = dpapi_subparsers.add_parser('credential', help='Decrypt credential file')
+	dpapi_credential_group.add_argument('cred', help='path to credential file')
+	dpapi_credential_group.add_argument('--masterkey', help= 'Masterkey used for decryption, in hex format')
+	dpapi_credential_group.add_argument('-m', '--mkb-file', help= 'Keyfile generated by the masterkey -o command.')
+
+	dpapi_vcred_group = dpapi_subparsers.add_parser('vcred', help='Decrypt vcred file')
+	dpapi_vcred_group.add_argument('vcred', help='path to vcred file')
+	dpapi_vcred_group.add_argument('--vpolkey', help= 'Key obtained by decrypting the corresponding VPOL file, in hex format. Remember to try both VPOL keys')
+
+	dpapi_vpol_group = dpapi_subparsers.add_parser('vpol', help='Decrypt vpol file')
+	dpapi_vpol_group.add_argument('vpol', help='path to vpol file')
+	dpapi_vpol_group.add_argument('--masterkey', help= 'Masterkey used for decryption, in hex format')
+	dpapi_vpol_group.add_argument('-m', '--mkb-file', help= 'Keyfile generated by the masterkey -o command.')
+	
+	sake_group = subparsers.add_parser('sake', help='sake')
 	
 	####### PARSING ARGUMENTS
 	
@@ -62,123 +127,208 @@ def main():
 	results = {}
 	files_with_error = []
 	
+	for helper in cmdhelpers:
+		helper.execute(args)
+	
 	
 	###### Live 
-	if args.command == 'live':
-		if args.module == 'lsa':
-			filename = 'live'
-			try:
-				mimi = pypykatz.go_live()
-				results['live'] = mimi
-			except Exception as e:
-				files_with_error.append(filename)
-				if args.halt_on_error == True:
-					raise e
+	if args.command == 'live':				
+		if args.module == 'process':
+			if args.cmd == 'create':
+				from pypykatz.commons.winapi.processmanipulator import ProcessManipulator
+				pm = ProcessManipulator()
+				sid = 'S-1-5-18'
+				if args.sid is not None:
+					sid = args.sid
+				
+				if args.cmdline is not None:
+					cmdline = args.cmdline
 				else:
-					print('Exception while dumping LSA credentials from memory.')
-					traceback.print_exc()
-					pass
-		
-	###### Minidump
-	elif args.command == 'minidump':		
-		if args.directory:
-			dir_fullpath = os.path.abspath(args.minidumpfile)
-			file_pattern = '*.dmp'
-			if args.recursive == True:
-				globdata = os.path.join(dir_fullpath, '**', file_pattern)
-			else:	
-				globdata = os.path.join(dir_fullpath, file_pattern)
+					#looking for the correct path...
+					cmdline = os.environ['ComSpec']
 				
-			logging.info('Parsing folder %s' % dir_fullpath)
-			for filename in glob.glob(globdata, recursive=args.recursive):
-				logging.info('Parsing file %s' % filename)
-				try:
-					mimi = pypykatz.parse_minidump_file(filename)
-					results[filename] = mimi
-				except Exception as e:
-					files_with_error.append(filename)
-					logging.exception('Error parsing file %s ' % filename)
-					if args.halt_on_error == True:
-						raise e
-					else:
-						pass
+				pm.create_process_for_sid(target_sid = sid, cmdline = cmdline, interactive = args.interactive)
+				return
 				
-		else:
-			logging.info('Parsing file %s' % args.minidumpfile)
-			try:
-				mimi = pypykatz.parse_minidump_file(args.minidumpfile)
-				results[args.minidumpfile] = mimi
-			except Exception as e:
-				logging.exception('Error while parsing file %s' % args.minidumpfile)
-				if args.halt_on_error == True:
-					raise e
-				else:
-					traceback.print_exc()
+		elif args.module == 'token':
+			from pypykatz.commons.winapi.processmanipulator import ProcessManipulator
+			if args.cmd == 'list':
+				pm = ProcessManipulator()
+				for ti in pm.list_all_tokens(args.force):
+					print(str(ti))
+				return
+				
+			if args.cmd == 'current':
+				pm = ProcessManipulator()
+				token_info = pm.get_current_token_info()
+				print(str(token_info))
+				return
+				
+		elif args.module == 'users':
+			from pypykatz.commons.winapi.machine import LiveMachine
 			
-
-	if args.outfile and args.json:
-		with open(args.outfile, 'w') as f:
-			json.dump(results, f, cls = UniversalEncoder, indent=4, sort_keys=True)
-	
-	elif args.outfile:
-		with open(args.outfile, 'w') as f:
-			for result in results:
-				f.write('FILE: ======== %s =======\n' % result)
+			if args.cmd == 'list':
+				lm = LiveMachine()
+				users = lm.list_users()
+				for sid in users:
+					print(str(users[sid]))
+					
+			elif args.cmd == 'whoami':
+				lm = LiveMachine()
+				user = lm.get_current_user()
+				print(str(user))
 				
-				for luid in results[result].logon_sessions:
-					f.write('\n'+str(results[result].logon_sessions[luid]))
-				
-				if len(results[result].orphaned_creds) > 0:
-					f.write('\n== Orphaned credentials ==\n')
-					for cred in results[result].orphaned_creds:
-						f.write(str(cred))
-				
-			if len(files_with_error) > 0:
-				f.write('\n== Failed to parse these files:\n')
-				for filename in files_with_error:
-					f.write('%s\n' % filename)
+		elif args.module == 'dpapi':
+			from pypykatz.dpapi.dpapi import DPAPI
 			
-	elif args.json:
-		print(json.dumps(results, cls = UniversalEncoder, indent=4, sort_keys=True))
-	
-	else:
-		for result in results:
-			print('FILE: ======== %s =======' % result)	
-			if isinstance(results[result], str):
-				print(results[result])
+			dpapi = DPAPI()
+			#####pre-key section
+			if args.method_registry == True:
+				dpapi.get_prekeys_form_registry_live()
+				
+				if not args.mkf:
+					raise Exception('Live registry method requires masterkeyfile to be set!')
+				
+				dpapi.decrypt_masterkey_file(args.mkf)
+			
 			else:
-				for luid in results[result].logon_sessions:
-					print(str(results[result].logon_sessions[luid]))
-						
-				if len(results[result].orphaned_creds) > 0:
-					print('== Orphaned credentials ==')
-					for cred in results[result].orphaned_creds:
-						print(str(cred))
-						
+				dpapi.get_masterkeys_from_lsass_live()
+			
+			#decryption stuff
+			if args.vcred:
+				if args.vpol is None:
+					raise Exception('for VCRED decryption you must suppliy VPOL file')
+				dpapi.decrypt_vpol_file(args.vpol)
+				res = dpapi.decrypt_vcrd_file(args.vcred)
+				for attr in res:
+					for i in range(len(res[attr])):
+						if res[attr][i] is not None:
+							print('AttributeID: %s Key %s' % (attr.id, i))
+							print(hexdump(res[attr][i]))
 				
+			elif args.vpol:
+				key1, key2 = dpapi.decrypt_vpol_file(args.vpol)
+				print('VPOL key1: %s' % key1.hex())
+				print('VPOL key2: %s' % key2.hex())
+				
+			elif args.cred:
+				cred_blob = dpapi.decrypt_credential_file(args.cred)
+				print(cred_blob.to_text())
+				
+			else:
+				#just printing masterkeys
+				for guid in dpapi.masterkeys:
+					print('GUID: %s MASTERKEY: %s' % (guid, dpapi.masterkeys[guid].hex()))
+					
+				if len(dpapi.masterkeys) == 0:
+					print('Failed to decrypt masterkey')
+			
+			
+	###### DPAPI offline
+	elif args.command == 'dpapi':
+		from pypykatz.dpapi.dpapi import DPAPI
 
-		if len(files_with_error) > 0:			
-			print('\n==== Parsing errors:')
-			for filename in files_with_error:
-				print(filename)
+		dpapi = DPAPI()
+
+		if args.dapi_module == 'prekey':
+			if args.keysource == 'registry':
+				if args.system is None:
+					raise Exception('SYSTEM hive must be specified for registry parsing!')
+				if args.sam is None and args.security is None:
+					raise Exception('Either SAM or SECURITY hive must be supplied for registry parsing! Best to have both.')
+
+				dpapi.get_prekeys_form_registry_files(args.system, args.security, args.sam)
+			
+			elif args.keysource == 'password':
+				if args.sid is None:
+					raise Exception('SID must be specified for generating prekey in this mode')
+				
+				pw = args.password
+				if args.password is None:
+					import getpass
+					pw = getpass.getpass()
+
+				dpapi.get_prekeys_from_password(args.sid, password = pw)
+			
+			elif args.keysource == 'nt':
+				if args.nt is None or args.sid is None:
+					raise Exception('NT hash and SID must be specified for generating prekey in this mode')
+
+				dpapi.get_prekeys_from_password(args.sid, nt_hash = args.nt)
+
+
+			dpapi.dump_pre_keys(args.out_file)
+
+
+		elif args.dapi_module == 'minidump':
+			if args.minidumpfile is None:
+				raise Exception('minidump file must be specified for mindiump parsing!')
+			
+			dpapi.get_masterkeys_from_lsass_dump(args.minidumpfile)
+			dpapi.dump_masterkeys(args.out_file)
+
+
+		elif args.dapi_module == 'masterkey':
+			if args.key is None and args.prekey is None:
+				raise Exception('Etieher KEY or path to prekey file must be supplied!')
+
+			if args.prekey:
+				dpapi.load_pre_keys(args.prekey)
+				dpapi.decrypt_masterkey_file(args.mkf)
+
+			if args.key:
+				dpapi.decrypt_masterkey_file(args.mkf, bytes.fromhex(args.key))
+			
+			if len(dpapi.masterkeys) == 0 and len(dpapi.backupkeys) == 0:
+				print('Failed to decrypt the masterkeyfile!')
+				return
+
+			dpapi.dump_masterkeys(args.out_file)
+
+		elif args.dapi_module == 'credential':
+			if args.masterkey is None and args.mkb_file is None:
+				raise Exception('Either masterkey or pre-generated MKB file must be specified')
+
+			if args.mkb_file is not None:
+				dpapi.load_masterkeys(args.mkb_file)
+				cred_blob = dpapi.decrypt_credential_file(args.cred)
+			else:
+				cred_blob = dpapi.decrypt_credential_file(args.cred, args.masterkey)
+			
+			print(cred_blob.to_text())
+
+		elif args.dapi_module == 'vpol':
+			if args.masterkey is None and args.mkb_file is None:
+				raise Exception('Either masterkey or pre-generated MKB file must be specified')
+
+			if args.mkb_file is not None:
+				dpapi.load_masterkeys(args.mkb_file)
+				key1, key2 = dpapi.decrypt_vpol_file(args.vpol)
+			else:
+				key1, key2 = dpapi.decrypt_vpol_file(args.vpol, args.masterkey)
+
+			
+			print('VPOL key1: %s' % key1.hex())
+			print('VPOL key2: %s' % key2.hex())
+
+
+		elif args.dapi_module == 'vcred':
+			if args.vpolkey is None:
+				raise Exception('VPOL key bust be specified!')
+				
+			res = dpapi.decrypt_vpol_file(args.vcred, args.vpolkey)
+			for attr in res:
+				for i in range(len(res[attr])):
+					if res[attr][i] is not None:
+						print('AttributeID: %s Key %s' % (attr.id, i))
+						print(hexdump(res[attr][i]))
 	
-	
-	if args.kerberos_dir:
-		dir = os.path.abspath(args.kerberos_dir)
-		logging.info('Writing kerberos tickets to %s' % dir)
-		for filename in results:
-			base_filename = ntpath.basename(filename)
-			ccache_filename = '%s_%s.ccache' % (base_filename, os.urandom(4).hex()) #to avoid collisions
-			results[filename].kerberos_ccache.to_file(os.path.join(dir, ccache_filename))
-			for luid in results[filename].logon_sessions:
-				for kcred in results[filename].logon_sessions[luid].kerberos_creds:
-					for ticket in kcred.tickets:
-						ticket.to_kirbi(dir)
-						
-			for cred in results[filename].orphaned_creds:
-				if cred.credtype == 'kerberos':
-					for ticket in cred.tickets:
-						ticket.to_kirbi(dir)			
+	###### Sake
+	elif args.command == 'sake':
+		from pypykatz.utils.sake.sake import Sake
+		s = Sake()
+		print(s.draw())
+					
 	
 	
 

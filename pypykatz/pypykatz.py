@@ -1,11 +1,23 @@
+#!/usr/bin/env python3
+#
+# Author:
+#  Tamas Jos (@skelsec)
+#
+
+import platform
 from .commons.common import *
 from .lsadecryptor import *
+
 from .commons.readers.local.live_reader import LiveReader
+
+try:
+	from minikerberos.ccache import CCACHE
+except ImportError:
+	CCACHE = None
 
 
 class pypykatz:
-	"""mimikatz offline"""
-	def __init__(self, reader, sysinfo):
+	def __init__(self, reader, sysinfo, logger=None):
 		self.reader = reader
 		self.sysinfo = sysinfo
 		self.credentials = []
@@ -17,6 +29,8 @@ class pypykatz:
 		self.logon_sessions = []
 		self.orphaned_creds = []
 		self.kerberos_ccache = None
+		
+		self.logger = logger if logger else logging.getLogger('pypykatz')
 		
 	def to_dict(self):
 		t = {}
@@ -34,20 +48,18 @@ class pypykatz:
 		mimi = pypykatz(reader.get_buffered_reader(), sysinfo)
 		mimi.start()
 		return mimi
-		
-	@staticmethod
-	def parse_minidump_file(filename):
-		try:
-			from minidump.minidumpfile import MinidumpFile
-		except ImportError:
-			raise ImportError('You need to install minidump dependency')
-
-		minidump = MinidumpFile.parse(filename)
-		reader = minidump.get_reader().get_buffered_reader()
-		sysinfo = KatzSystemInfo.from_minidump(minidump)
-		mimi = pypykatz(reader, sysinfo)
-		mimi.start()
-		return mimi
+	
+	def log_basic_info(self):
+		"""
+		In case of error, please attach this to the issues page
+		"""
+		self.logger.debug('===== BASIC INFO. SUBMIT THIS IF THERE IS AN ISSUE =====')
+		self.logger.debug('CPU arch: %s' % self.sysinfo.architecture.name)
+		self.logger.debug('OS: %s' % self.sysinfo.operating_system)
+		self.logger.debug('BuildNumber: %s' % self.sysinfo.buildnumber)
+		self.logger.debug('MajorVersion: %s ' % self.sysinfo.major_version)
+		self.logger.debug('MSV timestamp: %s' % self.sysinfo.msv_dll_timestamp)
+		self.logger.debug('===== BASIC INFO END =====')
 		
 	def get_logoncreds(self):
 		credman_template = CredmanTemplate.get_template(self.sysinfo)
@@ -59,7 +71,7 @@ class pypykatz:
 	def get_lsa(self):
 		lsa_dec_template = LsaTemplate.get_template(self.sysinfo)
 		lsa_dec = LsaDecryptor(self.reader, lsa_dec_template, self.sysinfo)
-		logging.debug(lsa_dec.dump())
+		self.logger.debug(lsa_dec.dump())
 		return lsa_dec
 	
 	def get_wdigest(self):
@@ -113,15 +125,17 @@ class pypykatz:
 				self.orphaned_creds.append(cred)
 	
 	def get_kerberos(self):
-		try:
-			from minikerberos.ccache import CCACHE
-		except ImportError:
-			raise ImportError('You need to install minikerberos dependency')
+		if CCACHE is None:
+			return
 
 		self.kerberos_ccache = CCACHE()
 		dec_template = KerberosTemplate.get_template(self.sysinfo)
-		dec = KerberosDecryptor(self.reader, dec_template, self.lsa_decryptor, self.sysinfo)
+		dec = KerberosDecryptor(
+			self.reader, dec_template, self.lsa_decryptor, self.sysinfo
+		)
+
 		dec.start()	
+
 		for cred in dec.credentials:
 			for ticket in cred.tickets:
 				for fn in ticket.kirbi_data:
@@ -133,16 +147,13 @@ class pypykatz:
 				self.orphaned_creds.append(cred)
 	
 	def start(self):
+		self.log_basic_info()
 		self.lsa_decryptor = self.get_lsa()
-		self.get_logoncreds()
-		self.get_wdigest()
-		#CHICKEN BITS - UNTESTED!!! DO NOT UNCOMMENT
-		try:
-			import minikerberos
-			self.get_kerberos()
-		except ImportError:
-			pass
-		self.get_tspkg()
-		self.get_ssp()
-		self.get_livessp()
-		self.get_dpapi()
+		for cb in (
+			self.get_logoncreds, self.get_wdigest,
+			self.get_kerberos, self.get_tspkg, self.get_ssp,
+				self.get_livessp, self.get_dpapi):
+			try:
+				cb()
+			except Exception as e:
+				self.logger.exception(e)

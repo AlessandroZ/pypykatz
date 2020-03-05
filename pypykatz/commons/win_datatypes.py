@@ -4,12 +4,17 @@
 #  Tamas Jos (@skelsec)
 #
 
+import io
 import enum
 import struct
 from pypykatz.commons.common import *
 
 
 class POINTER(object):
+	__slots__ = (
+		'location', 'value', 'finaltype'
+	)
+
 	def __init__(self, reader, finaltype):
 		self.location = reader.tell()
 		self.value = reader.read_uint()
@@ -43,259 +48,400 @@ class PVOID(POINTER):
 		super(PVOID, self).__init__(reader, None)  # with void we cannot determine the final type
 
 
-class BOOL:
+class VALUE(object):
+	__slots__ = ('value',)
+
+	def __init__(self, value):
+		self.value = value
+
+
+class BOOL(VALUE):
+	__slots__= ()
+
 	def __init__(self, reader):
-		self.value = bool(reader.read_uint())
+		super(BOOL, self).__init__(bool(reader.read_uint()))
 
 
-class BOOLEAN:
+class BOOLEAN(VALUE):
+	__slots__= ()
+
 	def __init__(self, reader):
-		self.value = reader.read(1)
+		super(BOOLEAN, self).__init__(reader.read(1))
 
 
-class BYTE:
+class BYTE(VALUE):
+	__slots__= ()
+
 	def __init__(self, reader):
-		self.value = reader.read(1)
+		super(BYTE, self).__init__(reader.read(1))
 
 
 class PBYTE(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PBYTE, self).__init__(reader, BYTE)
 
 
-class CCHAR:
+class CCHAR(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read(1).decode('ascii')
+		super(CCHAR, self).__init__(reader.read(1).decode('ascii'))
 
 
-class CHAR:
+class CHAR(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read(1).decode('ascii')
+		super(CHAR, self).__init__(reader.read(1).decode('ascii'))
 
 
-class UCHAR:
+class UCHAR(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = ord(reader.read(1))
+		super(UCHAR, self).__init__(ord(reader.read(1)))
 
 
-class WORD:
+class WORD(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<H", reader.read(2))[0]
+		super(WORD, self).__init__(
+			struct.unpack("<H", reader.read(2))[0])
 
 
-class DWORD:
+class DWORD(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<L", reader.read(4))[0]
+		super(DWORD, self).__init__(
+			struct.unpack("<L", reader.read(4))[0])
 
 
-class DWORDLONG:
+class DWORDLONG(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<Q", reader.read(8))[0]
+		super(DWORDLONG, self).__init__(
+			struct.unpack("<Q", reader.read(8))[0])
 
 
 class DWORD_PTR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(DWORD_PTR, self).__init__(reader, DWORD)
 
 
-class DWORD32:
+class DWORD32(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<L", reader.read(4))[0]
+		super(DWORD32, self).__init__(
+			struct.unpack("<L", reader.read(4))[0])
 
 
-class DWORD64:
+class DWORD64(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<Q", reader.read(8))[0]
+		super(DWORD64, self).__init__(
+			struct.unpack("<Q", reader.read(8))[0])
 
 
-class HANDLE:
+class HANDLE(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_uint()
+		super(HANDLE, self).__init__(
+			reader.read_uint())
 
 
-class HFILE:
+class HFILE(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<L", reader.read(4))[0]
+		super(HFILE, self).__init___(
+			struct.unpack("<L", reader.read(4))[0])
 
 
-class HINSTANCE:
+class HINSTANCE(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_uint()
+		super(HINSTANCE, self).__init__(
+			reader.read_uint())
 
 
-class HKEY:
+class HKEY(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_uint()
+		super(HKEY, self).__init__(reader.read_uint())
 
 
-class HKL:
+class HKL(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_uint()
+		super(HKL, self).__init__(reader.read_uint())
 
 
-class HLOCAL:
+class HLOCAL(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_uint()
+		super(HLOCAL, self).__init__(reader.read_uint())
 
 
-class INT:
+class INT(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = reader.read_int()
+		super(INT, self).__init__(reader.read_int())
 
 
 class INT_PTR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(INT_PTR, self).__init__(reader, INT)
 
 
-class UINT8:
+class UINT8(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = ord(reader.read(1))
+		super(UINT8, self).__init__(ord(reader.read(1)))
 
 
-class INT8:
+class INT8(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = ord(reader.read(1))
+		super(INT8, self).__init__(ord(reader.read(1)))
 
 
-class INT16:
+class INT16(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<h", reader.read(2))[0]
+		super(INT16, self).__init__(
+			struct.unpack("<h", reader.read(2))[0])
 
 
-class INT32:
+class INT32(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<l", reader.read(4))[0]
+		super(INT32, self).__init__(
+			struct.unpack("<l", reader.read(4))[0])
 
 
-class INT64:
+class INT64(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<q", reader.read(8))[0]
+		super(INT64, self).__init__(
+			struct.unpack("<q", reader.read(8))[0])
 
 
-class LONG:
+class LONG(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<l", reader.read(4))[0]
+		super(LONG, self).__init__(
+			struct.unpack("<l", reader.read(4))[0])
 
 
-class LONGLONG:
+class LONGLONG(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<q", reader.read(8))[0]
+		super(LONGLONG, self).__init__(
+			struct.unpack("<q", reader.read(8))[0])
 
 
 class LONG_PTR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(LONG_PTR, self).__init__(reader, LONG)
 
 
-class LONG32:
+class LONG32(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<q", reader.read(8))[0]
+		super(LONG32, self).__init__(
+			struct.unpack("<q", reader.read(8))[0])
 
 
-class LONG64():
+class LONG64(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<q", reader.read(8))[0]
+		super(LONG64, self).__init__(
+			struct.unpack("<q", reader.read(8))[0])
 
 
 class LPARAM(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(LPARAM, self).__init__(reader, LONG)
 
 
 class LPBOOL(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(LPBOOL, self).__init__(reader, BOOL)
 
 
 class LPBYTE(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(LPBYTE, self).__init__(reader, BYTE)
 
 
-class ULONG:
+class ULONG(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<L", reader.read(4))[0]
+		super(ULONG, self).__init__(
+			struct.unpack("<L", reader.read(4))[0])
 
 
-class ULONGLONG:
+class ULONGLONG(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<Q", reader.read(8))[0]
+		super(ULONGLONG, self.value).__init__(
+			struct.unpack("<Q", reader.read(8))[0])
 
 
-class ULONG32:
+class ULONG32(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<L", reader.read(4))[0]
+		super(ULONG32, self).__init__(
+			struct.unpack("<L", reader.read(4))[0])
 
 
-class ULONG64:
+class ULONG64(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<Q", reader.read(8))[0]
+		super(ULONG64, self).__init__(
+			struct.unpack("<Q", reader.read(8))[0])
 
 
 class PWSTR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PWSTR, self).__init__(reader, None)
 
 
 class PCHAR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PCHAR, self).__init__(reader, CHAR)
 
 
-class USHORT:
+class USHORT(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<H", reader.read(2))[0]
+		super(USHORT, self).__init__(
+			struct.unpack("<H", reader.read(2))[0])
 
 
-class SHORT:
+class SHORT(VALUE):
+	__slots__ = ()
+
 	def __init__(self, reader):
-		self.value = struct.unpack("<h", reader.read(2))[0]
+		super(SHORT, self).__init__(
+			struct.unpack("<h", reader.read(2))[0])
 
 
 # https://msdn.microsoft.com/en-us/library/windows/hardware/ff554296(v=vs.85).aspx
-class LIST_ENTRY:
+class LIST_ENTRY(object):
+	__slots__ = ('Flink', 'Blink')
+
 	def __init__(self, reader, finaltype=None):
 		self.Flink = POINTER(reader, finaltype)
 		self.Blink = POINTER(reader, finaltype)
 
 
-class FILETIME:
+class FILETIME(object):
+	__slots__ = (
+		'dwLowDateTime', 'dwHighDateTime', 'value'
+	)
+
 	def __init__(self, reader):
 		self.dwLowDateTime = DWORD(reader)
 		self.dwHighDateTime = DWORD(reader)
-		self.value = (self.dwHighDateTime.value << 32) + self.dwLowDateTime.value
+		self.value = (
+			self.dwHighDateTime.value << 32
+		) + self.dwLowDateTime.value
 
 
 class PUCHAR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PUCHAR, self).__init__(reader, UCHAR)
 
 
 class PCWSTR(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PCWSTR, self).__init__(reader, None)
 
 
-class SIZE_T:
-	def __init__(self, reader):
-		self.value = reader.read_uint()
+class SIZE_T(VALUE):
+	__slots__ = ()
 
-class LARGE_INTEGER:
+	def __init__(self, reader):
+		super(SIZE_T, self).__init__(reader.read_uint())
+
+
+class LARGE_INTEGER(object):
+	__slots__ = (
+		'LowPart', 'HighPart', 'QuadPart'
+	)
+
 	def __init__(self, reader):
 		self.LowPart = DWORD(reader).value
 		self.HighPart = LONG(reader).value
 		self.QuadPart = LONGLONG(reader).value
 
+
 class PSID(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PSID, self).__init__(reader, SID)
 
-class SID:
+
+class SID(object):
+	__slots__ = (
+		'Revision', 'SubAuthorityCount',
+		'IdentifierAuthority', 'SubAuthority'
+	)
+
 	def __init__(self, reader):
 		self.Revision = UINT8(reader).value
 		self.SubAuthorityCount = UINT8(reader).value
-		self.IdentifierAuthority = struct.unpack(">Q", b'\x00\x00' + reader.read(6))[0]
+		self.IdentifierAuthority = struct.unpack(
+			">Q", b'\x00\x00' + reader.read(6))[0]
 		self.SubAuthority = []
 		for i in range(self.SubAuthorityCount):
 			self.SubAuthority.append(ULONG(reader).value)
@@ -305,17 +451,27 @@ class SID:
 		for subauthority in self.SubAuthority:
 			t+= '-%d' % (subauthority)
 		return t
-		
-class LUID:
+
+
+class LUID(object):
+	__slots__ = (
+		'LowPart', 'HighPart', 'value'
+	)
+
 	def __init__(self, reader):
 		self.LowPart = DWORD(reader).value
 		self.HighPart = LONG(reader).value
 		self.value = (self.HighPart << 32) + self.LowPart
-		
+
+
 # https://msdn.microsoft.com/en-us/library/windows/desktop/ms721841(v=vs.85).aspx
-class LSA_UNICODE_STRING:
+class LSA_UNICODE_STRING(object):
+	__slots__ = (
+		'Length', 'MaximumLength', 'Buffer'
+	)
+
 	def __init__(self, reader):
-		self.Length= USHORT(reader).value
+		self.Length = USHORT(reader).value
 		self.MaximumLength = USHORT(reader).value
 		reader.align()
 		self.Buffer = PWSTR(reader).value
@@ -340,12 +496,20 @@ class LSA_UNICODE_STRING:
 		reader.move(self.Buffer)
 		return reader.read(self.MaximumLength)
 		
+
 # https://msdn.microsoft.com/en-us/library/windows/hardware/ff540605(v=vs.85).aspx
 class PANSI_STRING(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PANSI_STRING, self).__init__(reader, ANSI_STRING)
-		
-class ANSI_STRING:
+
+
+class ANSI_STRING(object):
+	__slots__ = (
+		'Length', 'MaximumLength', 'Buffer'
+	)
+
 	def __init__(self, reader):
 		self.Length = USHORT(reader)
 		self.MaximumLength = USHORT(reader)
@@ -369,6 +533,8 @@ class ANSI_STRING:
 # https://msdn.microsoft.com/en-us/library/windows/desktop/aa378064(v=vs.85).aspx
 
 class KerberosNameType(enum.Enum):
+	__slots__ = ()
+
 	KRB_NT_UNKNOWN = 0
 	KRB_NT_PRINCIPAL = 1
 	KRB_NT_PRINCIPAL_AND_ID = -131
@@ -382,11 +548,19 @@ class KerberosNameType(enum.Enum):
 	KRB_NT_MS_PRINCIPAL = -128
 	KRB_NT_MS_PRINCIPAL_AND_ID = -129
 	
+
 class PKERB_EXTERNAL_NAME(POINTER):
+	__slots__ = ()
+
 	def __init__(self, reader):
 		super(PKERB_EXTERNAL_NAME, self).__init__(reader, KERB_EXTERNAL_NAME)
 
-class KERB_EXTERNAL_NAME:
+
+class KERB_EXTERNAL_NAME(object):
+	__slots__ = (
+		'NameType', 'NameCount', 'Names'
+	)
+
 	def __init__(self, reader):
 		self.NameType = SHORT(reader).value #KerberosNameType(SHORT(reader).value)
 		self.NameCount = USHORT(reader).value
@@ -402,17 +576,31 @@ class KERB_EXTERNAL_NAME:
 		return t
 		
 		
-class KIWI_GENERIC_PRIMARY_CREDENTIAL:
+class KIWI_GENERIC_PRIMARY_CREDENTIAL(object):
+	__slots__ = (
+		'UserName', 'Domaine', 'Password'
+	)
+
 	def __init__(self, reader):
 		self.UserName = LSA_UNICODE_STRING(reader)
 		self.Domaine = LSA_UNICODE_STRING(reader)
 		self.Password = LSA_UNICODE_STRING(reader)
 
-class PRTL_BALANCED_LINKS(POINTER):
-	def __init__(self, reader):
-		super(PRTL_BALANCED_LINKS, self).__init__(reader, RTL_BALANCED_LINKS)
 
-class RTL_BALANCED_LINKS:
+class PRTL_BALANCED_LINKS(POINTER):
+	__slots__ = ()
+
+	def __init__(self, reader):
+		super(PRTL_BALANCED_LINKS, self).__init__(
+			reader, RTL_BALANCED_LINKS)
+
+
+class RTL_BALANCED_LINKS(object):
+	__slots__ = (
+		'Parent', 'LeftChild', 'RightChild',
+		'Balance', 'Reserved'
+	)
+
 	def __init__(self, reader):
 		self.Parent = PRTL_BALANCED_LINKS(reader)
 		self.LeftChild = PRTL_BALANCED_LINKS(reader)
@@ -421,11 +609,23 @@ class RTL_BALANCED_LINKS:
 		self.Reserved = reader.read(3) # // align
 		reader.align()
 
+
 class PRTL_AVL_TABLE(POINTER):
 	def __init__(self, reader):
 		super(PRTL_AVL_TABLE, self).__init__(reader, RTL_AVL_TABLE)
-		
-class RTL_AVL_TABLE:
+
+
+class RTL_AVL_TABLE(object):
+	__slots__ = (
+		'BalancedRoot', 'OrderedPointer', 'WhichOrderedElement',
+		'NumberGenericTableElements', 'DepthOfTree',
+
+		'RestartKey', 'DeleteCount',
+
+		'CompareRoutine', 'AllocateRoutine', 'FreeRoutine',
+		'TableContext'
+	)
+
 	def __init__(self, reader):
 		self.BalancedRoot = RTL_BALANCED_LINKS(reader)
 		self.OrderedPointer = PVOID(reader)
@@ -439,14 +639,26 @@ class RTL_AVL_TABLE:
 		self.CompareRoutine = PVOID (reader)# //
 		self.AllocateRoutine = PVOID(reader) #//
 		self.FreeRoutine = PVOID(reader)#//
-		TableContext = PVOID(reader)
+		self.TableContext = PVOID(reader)
+
 
 class PLSAISO_DATA_BLOB(POINTER):
 	def __init__(self, reader):
-		super(PLSAISO_DATA_BLOB, self).__init__(reader, LSAISO_DATA_BLOB)
-		
-class LSAISO_DATA_BLOB:
-	size = 9*4 + 3*16 + 16 #+sizeof array ?ANYSIZE_ARRAY
+		super(PLSAISO_DATA_BLOB, self).__init__(
+			reader, LSAISO_DATA_BLOB)
+
+
+class LSAISO_DATA_BLOB(object):
+	#+sizeof array ?ANYSIZE_ARRAY
+	size = 9*4 + 3*16 + 16
+
+	__slots__ = (
+		'structSize', 'unk0', 'typeSize',
+		'unk1', 'unk2', 'unk3', 'unk4',
+		'unkKeyData', 'unkData2', 'unk5',
+		'origSize', 'data'
+	)
+
 	def __init__(self, reader):
 		self.structSize = DWORD(reader)
 		self.unk0 = DWORD(reader)
@@ -460,15 +672,25 @@ class LSAISO_DATA_BLOB:
 		self.unk5 = DWORD(reader)
 		self.origSize = DWORD(reader)
 		self.data = None #size determined later
-		
-		
-class ENC_LSAISO_DATA_BLOB:
+
+
+class ENC_LSAISO_DATA_BLOB(object):
+	__slots__ = (
+		'unkData1', 'unkData2', 'data'
+	)
+
 	def __init__(self, reader):
 		self.unkData1 = reader.read(16)
 		self.unkData2 = reader.read(16)
 		self.data = None #size determined later
-		
-class GUID:
+
+
+class GUID(object):
+	__slots__ = (
+		'Data1', 'Data2', 'Data3', 'Data4',
+		'value'
+	)
+
 	def __init__(self, reader):
 		self.Data1 = DWORD(reader).value
 		self.Data2 = WORD(reader).value

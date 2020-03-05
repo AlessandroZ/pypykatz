@@ -185,6 +185,36 @@ class LogonSession:
 			for cred in self.dpapi_creds:
 				t+= str(cred)
 		return t
+
+	def to_row(self):
+		for cred in self.msv_creds:
+			t = cred.to_dict()
+			yield [self.luid, 'msv', self.session_id, self.sid, 'msv', '', self.domainname, self.username, 'NT', t['NThash'].hex() if t['NThash'] else '']
+			yield [self.luid, 'msv', self.session_id, self.sid, 'msv', '', self.domainname, self.username, 'LM', t['LMHash'].hex() if t['LMHash'] else '']
+			yield [self.luid, 'msv', self.session_id, self.sid, 'msv', '', self.domainname, self.username, 'sha1', t['SHAHash'].hex() if t['LMHash'] else '']
+		for cred in self.wdigest_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		for cred in self.ssp_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		for cred in self.livessp_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		for cred in self.dpapi_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'masterkey', t['masterkey']]
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'sha1', t['sha1_masterkey']]
+		for cred in self.kerberos_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		for cred in self.credman_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		for cred in self.tspkg_creds:
+			t = cred.to_dict()
+			yield [self.luid, t['credtype'], self.session_id, self.sid, t['credtype'], '', self.domainname, self.username, 'plaintext', t['password']]
+		
 		
 class MsvDecryptor(PackageDecryptor):
 	def __init__(self, reader, decryptor_template, lsa_decryptor, credman_template, sysinfo):
@@ -194,11 +224,23 @@ class MsvDecryptor(PackageDecryptor):
 		self.entries = []
 		self.entries_seen = {}
 		self.logon_sessions = {}
+		self.logon_session_count = None
 		
 		self.current_logonsession = None
 
 	def find_first_entry(self):
+		#finding signature
 		position = self.find_signature('lsasrv.dll',self.decryptor_template.signature)
+
+		#getting logon session count
+		if self.sysinfo.architecture == KatzSystemArchitecture.X64 and self.sysinfo.buildnumber > WindowsMinBuild.WIN_BLUE.value:
+			ptr_entry_loc = self.reader.get_ptr_with_offset(position + self.decryptor_template.offset2)
+			self.reader.move(ptr_entry_loc)
+			self.logon_session_count = ord(self.reader.read(1))
+		else:
+			self.logon_session_count = 1
+
+		#getting logon session ptr
 		ptr_entry_loc = self.reader.get_ptr_with_offset(position + self.decryptor_template.first_entry_offset)
 		ptr_entry = self.reader.get_ptr(ptr_entry_loc)
 		return ptr_entry, ptr_entry_loc
@@ -247,30 +289,35 @@ class MsvDecryptor(PackageDecryptor):
 	def add_primary_credentials(self, primary_credentials_entry):
 		
 		encrypted_credential_data = primary_credentials_entry.encrypted_credentials.read_data(self.reader)
+
+		#this is super-strange but sometimes the encrypted data can be empty (seen in forensics images)
+		if not encrypted_credential_data:
+			return
 		
 		self.log('Encrypted credential data \n%s' % hexdump(encrypted_credential_data))
 		self.log('Decrypting credential structure')
 		dec_data = self.decrypt_password(encrypted_credential_data, bytes_expected = True)
 		self.log('%s: \n%s' % (self.decryptor_template.decrypted_credential_struct.__name__, hexdump(dec_data)))
 			
+		struct_reader = GenericReader(dec_data, self.sysinfo.architecture)
 		if len(dec_data) == MSV1_0_PRIMARY_CREDENTIAL_STRANGE_DEC.size and dec_data[4:8] == b'\xcc\xcc\xcc\xcc':
-			creds_struct = MSV1_0_PRIMARY_CREDENTIAL_STRANGE_DEC(GenericReader(dec_data, self.sysinfo.architecture))
+			creds_struct = MSV1_0_PRIMARY_CREDENTIAL_STRANGE_DEC(struct_reader)
 		else:
-			creds_struct = self.decryptor_template.decrypted_credential_struct(GenericReader(dec_data, self.sysinfo.architecture))
+			creds_struct = self.decryptor_template.decrypted_credential_struct(struct_reader)
 		
 		
 		cred = MsvCredential()
 		
 		if creds_struct.UserName:
 			try:
-				cred.username = creds_struct.UserName.read_string(reader)
+				cred.username = creds_struct.UserName.read_string(struct_reader)
 			except Exception as e:
-				self.log('Failed to get username')
+				self.log('Failed to get username, reason : %s' % str(e))
 		if creds_struct.LogonDomainName:
 			try:
-				cred.domainname = creds_struct.LogonDomainName.read_string(reader)
+				cred.domainname = creds_struct.LogonDomainName.read_string(struct_reader)
 			except Exception as e:
-				self.log('Failed to get username')
+				self.log('Failed to get domainname, reason : %s' % str(e))
 				
 		cred.NThash = creds_struct.NtOwfPassword
 		
@@ -282,7 +329,11 @@ class MsvDecryptor(PackageDecryptor):
 	
 	def start(self):
 		entry_ptr_value, entry_ptr_loc = self.find_first_entry()
-		self.reader.move(entry_ptr_loc)
-		entry_ptr = self.decryptor_template.list_entry(self.reader)
-		self.walk_list(entry_ptr, self.add_entry)
+		for i in range(self.logon_session_count):
+			self.reader.move(entry_ptr_loc)
+			for x in range(i*2): #skipping offset in an architecture-agnostic way
+				self.reader.read_int() #dows nothing just moves the position
+				self.log('moving to other logon session')
+			entry_ptr = self.decryptor_template.list_entry(self.reader)
+			self.walk_list(entry_ptr, self.add_entry)
 

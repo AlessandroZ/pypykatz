@@ -28,19 +28,18 @@ def NtError(status):
 #   __in   BOOLEAN   CurrentThread,
 #   __in   PBOOLEAN  Enabled,
 # );
-def RtlAdjustPrivilege(privilige_id):
+def RtlAdjustPrivilege(privilige_id, enable = True, thread_or_process = False):
 	"""
 	privilige_id: int
 	"""
 	_RtlAdjustPrivilege = windll.ntdll.RtlAdjustPrivilege
 	_RtlAdjustPrivilege.argtypes = [ULONG, BOOL, BOOL, POINTER(BOOL)]
 	_RtlAdjustPrivilege.restype  = NTSTATUS
-
-	Enable = True
-	CurrentThread = False #enable for whole process
+	
+	CurrentThread = thread_or_process #enable for whole process
 	Enabled = BOOL()
 	
-	status = _RtlAdjustPrivilege(privilige_id, Enable, CurrentThread, ctypes.byref(Enabled))
+	status = _RtlAdjustPrivilege(privilige_id, enable, CurrentThread, ctypes.byref(Enabled))
 	if status != STATUS_SUCCESS:
 		raise Exception(NtError(status))
 	
