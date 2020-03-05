@@ -34,8 +34,13 @@ class pypykatz:
 		
 	def to_dict(self):
 		t = {}
-		t['logon_sessions'] = self.logon_sessions
-		t['orphaned_creds'] = self.orphaned_creds
+		t['logon_sessions'] = {}
+		for ls in self.logon_sessions:
+			# print(ls)
+			t['logon_sessions'][ls] = (self.logon_sessions[ls].to_dict())
+		t['orphaned_creds'] = []
+		for oc in self.orphaned_creds:
+			t['orphaned_creds'].append(oc.to_dict())
 		return t
 		
 	def to_json(self):
@@ -147,7 +152,7 @@ class pypykatz:
 				self.orphaned_creds.append(cred)
 	
 	def start(self):
-		self.log_basic_info()
+		# self.log_basic_info()
 		self.lsa_decryptor = self.get_lsa()
 		for cb in (
 			self.get_logoncreds, self.get_wdigest,
