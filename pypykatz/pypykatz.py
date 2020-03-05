@@ -76,7 +76,7 @@ class pypykatz:
 	def get_lsa(self):
 		lsa_dec_template = LsaTemplate.get_template(self.sysinfo)
 		lsa_dec = LsaDecryptor(self.reader, lsa_dec_template, self.sysinfo)
-		self.logger.debug(lsa_dec.dump())
+		# self.logger.debug(lsa_dec.dump())
 		return lsa_dec
 	
 	def get_wdigest(self):
